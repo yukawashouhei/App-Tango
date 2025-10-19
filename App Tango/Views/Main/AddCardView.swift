@@ -53,26 +53,34 @@ struct AddCardView: View {
                                     .multilineTextAlignment(.center)
                                     .padding()
                                 
-                                if !term.isEmpty && aiService.isAvailable {
-                                    Button(action: generateDefinition) {
-                                        HStack {
-                                            if isGenerating {
-                                                ProgressView()
-                                                    .progressViewStyle(CircularProgressViewStyle())
-                                                Text("生成中...")
-                                            } else {
-                                                Image(systemName: "sparkles")
-                                                Text("意味を確認")
+                                if !term.isEmpty {
+                                    if aiService.isAvailable {
+                                        Button(action: generateDefinition) {
+                                            HStack {
+                                                if isGenerating {
+                                                    ProgressView()
+                                                        .progressViewStyle(CircularProgressViewStyle())
+                                                    Text("生成中...")
+                                                } else {
+                                                    Image(systemName: "sparkles")
+                                                    Text("意味を確認")
+                                                }
                                             }
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                            .background(Color.blue)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(15)
                                         }
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(15)
+                                        .disabled(isGenerating)
+                                        .padding(.horizontal)
+                                    } else {
+                                        Text("AI機能は利用できません。下の欄で手動入力してください。")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal)
                                     }
-                                    .disabled(isGenerating)
-                                    .padding(.horizontal)
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -84,15 +92,15 @@ struct AddCardView: View {
                         }
                         .padding(.top, 20)
                         
-                        // AI生成カード
+                        // 意味入力カード
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("AI生成")
+                            Text(aiService.isAvailable ? "AI生成" : "意味入力")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .padding(.horizontal, 30)
                             
                             VStack(spacing: 15) {
-                                if definition.isEmpty && !hasGeneratedDefinition {
+                                if definition.isEmpty && !hasGeneratedDefinition && aiService.isAvailable {
                                     Text("単語を入力後、意味を確認ボタンを押してください")
                                         .font(.body)
                                         .foregroundColor(.gray)
@@ -102,6 +110,10 @@ struct AddCardView: View {
                                     TextEditor(text: $definition)
                                         .frame(minHeight: 200)
                                         .padding()
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 25)
+                                                .stroke(definition.isEmpty ? Color.gray.opacity(0.3) : Color.clear, lineWidth: 1)
+                                        )
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -116,6 +128,11 @@ struct AddCardView: View {
                             Text("AIが生成した意味は間違っている場合があります。")
                                 .font(.caption)
                                 .foregroundColor(.red)
+                                .padding(.horizontal, 30)
+                        } else if !aiService.isAvailable {
+                            Text("手動で意味を入力してください。")
+                                .font(.caption)
+                                .foregroundColor(.blue)
                                 .padding(.horizontal, 30)
                         }
                         
