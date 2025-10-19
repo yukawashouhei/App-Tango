@@ -50,6 +50,8 @@ struct DeckListView: View {
                         .cornerRadius(25)
                         .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
                     }
+                    .accessibilityLabel("新しいフォルダを作成")
+                    .accessibilityHint("タップすると新しいフォルダを作成できます")
                     .padding(.horizontal, 30)
                     
                     // デッキリスト
@@ -107,7 +109,7 @@ struct DeckCardView: View {
     let deck: Deck
     
     private var wordCount: Int {
-        deck.cards?.count ?? 0
+        deck.cards.count
     }
     
     private var wordCountText: String {

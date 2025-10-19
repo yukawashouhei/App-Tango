@@ -114,7 +114,12 @@ class AIService: ObservableObject {
             
             return DefinitionResponse(definition: definition)
         } catch {
-            throw AIError.generationFailed
+            print("❌ AI生成エラー: \(error)")
+            if let aiError = error as? AIError {
+                throw aiError
+            } else {
+                throw AIError.unknown
+            }
         }
     }
 }

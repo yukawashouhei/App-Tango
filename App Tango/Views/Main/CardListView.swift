@@ -12,6 +12,7 @@ import SwiftData
 struct CardListView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = CardListViewModel()
+    @StateObject private var learningService = LearningService.shared
     
     let deck: Deck
     
@@ -73,7 +74,7 @@ struct CardListView: View {
                         .cornerRadius(15)
                     }
                     
-                    NavigationLink(destination: LearningView(cards: viewModel.cards)) {
+                    NavigationLink(destination: LearningView(initialCards: getLearningCards())) {
                         HStack {
                             Image(systemName: "brain.head.profile")
                             Text("学習する")
@@ -120,28 +121,71 @@ struct CardListView: View {
             viewModel.deleteCard(card)
         }
     }
+    
+    // 学習用カードを取得（理解度とランダム性を考慮）
+    private func getLearningCards() -> [Card] {
+        let cards = learningService.selectCardsForReview(from: deck)
+        let maxQuestions = min(10, viewModel.cards.count)
+        print("🎓 CardListView: 学習カード取得完了 - \(cards.count)枚 (最大\(maxQuestions)問)")
+        return cards
+    }
 }
 
 // カード行ビュー
 struct CardRowView: View {
     let card: Card
+    @StateObject private var learningService = LearningService.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(card.term)
-                .font(.headline)
-                .foregroundColor(.black)
+            HStack {
+                Text(card.term)
+                    .font(.headline)
+                    .foregroundColor(.black)
+                
+                Spacer()
+                
+                // 理解度表示
+                Text(learningService.getUnderstandingDisplayName(for: card))
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(getUnderstandingColor())
+                    .cornerRadius(8)
+            }
             
             Text(card.definition)
                 .font(.subheadline)
                 .foregroundColor(.gray)
                 .lineLimit(2)
+            
+            // 学習回数のみ表示
+            HStack {
+                Text("学習回数: \(card.reviewCount)")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .cornerRadius(15)
         .shadow(color: .black.opacity(0.1), radius: 5, y: 3)
+    }
+    
+    private func getUnderstandingColor() -> Color {
+        let level = UnderstandingLevel(rawValue: card.understandingLevel) ?? .new
+        switch level {
+        case .new: return .red
+        case .difficult: return .orange
+        case .learning: return .yellow
+        case .familiar: return .blue
+        case .mastered: return .green
+        case .expert: return .purple
+        }
     }
 }
 

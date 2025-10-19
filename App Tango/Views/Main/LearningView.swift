@@ -10,12 +10,17 @@ import SwiftUI
 import SwiftData
 
 struct LearningView: View {
-    let cards: [Card]
+    let initialCards: [Card] // 初期カード配列
     
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var learningService = LearningService.shared
     @State private var currentIndex = 0
     @State private var isFlipped = false
     @State private var showCompletion = false
+    
+    // 学習用の固定カード配列（Stateで保持）
+    @State private var cards: [Card] = []
     
     var body: some View {
         ZStack {
@@ -60,41 +65,108 @@ struct LearningView: View {
                         isFlipped: $isFlipped
                     )
                     .padding(.horizontal, 30)
+                    .onAppear {
+                        let currentCard = cards[currentIndex]
+                        print("📱 カード表示: インデックス\(currentIndex), カードID: \(currentCard.id), 単語: \(currentCard.term)")
+                        print("📱 カード配列確認: 総数\(cards.count), 現在のインデックス\(currentIndex)")
+                    }
                     
                     Spacer()
                     
-                    // 次へボタン
-                    Button(action: nextCard) {
-                        HStack {
-                            Text("次へ")
-                                .font(.headline)
-                            Image(systemName: "arrow.right")
+                    // 理解度ボタン（カードをめくる前）
+                    if !isFlipped {
+                        HStack(spacing: 20) {
+                            Button("説明できない") {
+                                updateUnderstanding(isCorrect: false)
+                                // カードをフリップして次へボタンを表示
+                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                    isFlipped = true
+                                }
+                            }
+                            .buttonStyle(UnderstandingButtonStyle(isCorrect: false))
+                            .accessibilityLabel("説明できない")
+                            .accessibilityHint("この単語の意味を説明できない場合にタップしてください")
+                            
+                            Button("説明できる") {
+                                updateUnderstanding(isCorrect: true)
+                                nextCard()
+                            }
+                            .buttonStyle(UnderstandingButtonStyle(isCorrect: true))
+                            .accessibilityLabel("説明できる")
+                            .accessibilityHint("この単語の意味を説明できる場合にタップしてください")
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(25)
+                        .padding(.horizontal, 30)
                     }
-                    .padding(.horizontal, 30)
-                    .padding(.bottom, 50)
+                    
+                    // 次へボタン（カードをめくった後）
+                    if isFlipped {
+                        Button(action: nextCard) {
+                            HStack {
+                                Text("次へ")
+                                    .font(.headline)
+                                Image(systemName: "arrow.right")
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(15)
+                        }
+                        .padding(.horizontal, 30)
+                    }
+                    
+                    Spacer()
+                        .frame(height: 50)
                 }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // カード配列を固定化（学習中は変更しない）
+            cards = initialCards
+            print("🎯 学習開始: カード配列を固定化 - \(cards.count)枚")
+            for (index, card) in cards.enumerated() {
+                print("  \(index): \(card.term) (ID: \(card.id))")
+            }
+            // 学習セッション開始
+            learningService.startLearningSession()
+        }
+        .onDisappear {
+            // 学習セッション終了
+            learningService.endLearningSession()
+        }
+    }
+    
+    private func updateUnderstanding(isCorrect: Bool) {
+        let currentCard = cards[currentIndex]
+        print("🎯 理解度更新: インデックス\(currentIndex), カードID: \(currentCard.id), 単語: \(currentCard.term)")
+        
+        learningService.updateUnderstanding(for: currentCard, isCorrect: isCorrect)
+        
+        // データベースに保存
+        do {
+            try modelContext.save()
+            print("💾 理解度保存完了: \(currentCard.term)")
+        } catch {
+            print("❌ 理解度の保存に失敗: \(error)")
+        }
     }
     
     private func nextCard() {
         // カードをリセット
         isFlipped = false
         
+        print("🔄 次のカードへ: 現在のインデックス\(currentIndex), 総カード数\(cards.count)")
+        
         // 次のカードへ
         if currentIndex < cards.count - 1 {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 currentIndex += 1
             }
+            print("➡️ インデックス更新: \(currentIndex - 1) → \(currentIndex)")
         } else {
             // 全カード完了
+            print("🏁 全カード完了")
             showCompletion = true
         }
     }
@@ -110,11 +182,19 @@ struct FlipCardView: View {
             // 表面（単語）
             CardFaceView(text: card.term, isLarge: true)
                 .opacity(isFlipped ? 0 : 1)
+                .onAppear {
+                    print("🎴 表面表示: \(card.term) (ID: \(card.id))")
+                }
             
             // 裏面（定義）
             CardFaceView(text: card.definition, isLarge: false)
                 .opacity(isFlipped ? 1 : 0)
                 .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                .onAppear {
+                    if isFlipped {
+                        print("🎴 裏面表示: \(card.term) → \(card.definition) (ID: \(card.id))")
+                    }
+                }
         }
         .rotation3DEffect(
             .degrees(isFlipped ? 180 : 0),
@@ -189,6 +269,23 @@ struct CompletionView: View {
     }
 }
 
+// 理解度ボタンスタイル
+struct UnderstandingButtonStyle: ButtonStyle {
+    let isCorrect: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isCorrect ? Color.green : Color.red)
+            .cornerRadius(15)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 #Preview {
     @Previewable @State var previewContainer: ModelContainer = {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -203,7 +300,7 @@ struct CompletionView: View {
     }()
     
     NavigationStack {
-        LearningView(cards: (try? previewContainer.mainContext.fetch(FetchDescriptor<Card>())) ?? [])
+        LearningView(initialCards: (try? previewContainer.mainContext.fetch(FetchDescriptor<Card>())) ?? [])
             .modelContainer(previewContainer)
     }
 }

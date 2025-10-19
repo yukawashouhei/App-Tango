@@ -27,7 +27,7 @@ class CardListViewModel: ObservableObject {
     // カード一覧を取得
     func fetchCards() {
         guard let deck = currentDeck else { return }
-        cards = deck.cards ?? []
+        cards = deck.cards
     }
     
     // 新しいカードを作成

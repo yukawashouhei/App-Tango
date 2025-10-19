@@ -16,12 +16,12 @@ class Deck {
     var createdAt: Date
     
     @Relationship(deleteRule: .cascade, inverse: \Card.deck)
-    var cards: [Card]?
+    var cards: [Card] = []
     
     init(name: String) {
         self.id = UUID()
         self.name = name
         self.createdAt = Date()
-        self.cards = []
+        // cardsは自動的に空配列で初期化される
     }
 }
