@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  App Tango
+//  iDev Tango
 //
 //  メインエントリーポイント
 //  DeckListViewを表示

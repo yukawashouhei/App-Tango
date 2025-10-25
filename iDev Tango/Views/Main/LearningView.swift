@@ -1,6 +1,6 @@
 //
 //  LearningView.swift
-//  App Tango
+//  iDev Tango
 //
 //  学習画面
 //  カードフリップアニメーションで単語と定義を表示
